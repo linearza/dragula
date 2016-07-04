@@ -39,16 +39,15 @@ function dragula (initialContainers, options) {
   if (o.direction === void 0) { o.direction = 'vertical'; }
   if (o.ignoreInputTextSelection === void 0) { o.ignoreInputTextSelection = true; }
   if (o.mirrorContainer === void 0) { o.mirrorContainer = doc.body; }
-  if (o.allowNestedContainers === void 0) { o.allowNestedContainers = false; }
 
   var drake = emitter({
     containers: o.containers,
     start: manualStart,
     end: end,
-    lift: lift,
     cancel: cancel,
     remove: remove,
     destroy: destroy,
+    canMove: canMove,
     dragging: false
   });
 
@@ -60,13 +59,8 @@ function dragula (initialContainers, options) {
 
   return drake;
 
-  function isContainer (el, handle) {
-    handle = handle || null;
-    if (handle && o.allowNestedContainers) {
-       return drake.containers.indexOf(el) !== -1 && o.isContainer(el, handle);
-     } else {
-       return drake.containers.indexOf(el) !== -1 || o.isContainer(el);
-     }
+  function isContainer (el) {
+    return drake.containers.indexOf(el) !== -1 || o.isContainer(el);
   }
 
   function events (remove) {
@@ -121,25 +115,6 @@ function dragula (initialContainers, options) {
     }
   }
 
-  function lift (el) {
-    _grabbed = canStart(el);
-    if (!_grabbed) {
-        return;
-    }
-    _offsetX = _offsetY = 0; // we could calc these on mousemove but 0,0 is simpler
-    startOnLift();
-  }
-
-  function startOnLift () {
-    var grabbed = _grabbed; // call to end() unsets _grabbed
-    eventualMovements(true);
-    movements();
-    end();
-    start(grabbed);
-    classes.add(_copy || _item, 'gu-transit');
-    renderMirrorImage();
-  }
-
   function startBecauseMouseMoved (e) {
     if (!_grabbed) {
       return;
@@ -180,11 +155,11 @@ function dragula (initialContainers, options) {
     if (drake.dragging && _mirror) {
       return;
     }
-    var handle = item;
-    if (isContainer(item, handle) && !o.allowNestedContainers) {
+    if (isContainer(item)) {
       return; // don't drag container itself
     }
-    while (getParent(item) && isContainer(getParent(item), handle) === false) {
+    var handle = item;
+    while (getParent(item) && isContainer(getParent(item)) === false) {
       if (o.invalid(item, handle)) {
         return;
       }
@@ -210,6 +185,10 @@ function dragula (initialContainers, options) {
       item: item,
       source: source
     };
+  }
+
+  function canMove (item) {
+    return !!canStart(item);
   }
 
   function manualStart (item) {
@@ -307,7 +286,13 @@ function dragula (initialContainers, options) {
     var initial = isInitialPlacement(parent);
     if (initial === false && reverts) {
       if (_copy) {
-        parent.removeChild(_copy);
+        if(parent){
+          parent.removeChild(_copy);
+        }
+        else {
+          _copy.remove();
+        }
+        // parent.removeChild(_copy);
       } else {
         _source.insertBefore(item, _initialSibling);
       }
